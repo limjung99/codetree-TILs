@@ -31,6 +31,7 @@ public class Main {
             int op = Integer.parseInt(st.nextToken());
             int t = Integer.parseInt(st.nextToken());
             computePos(t);
+//            debug(t);
             if(op == 100){
                 int x = Integer.parseInt(st.nextToken());
                 String name = st.nextToken();
@@ -52,11 +53,20 @@ public class Main {
 
     static void debug(int t){
         System.out.println("after compute :"+t);
+        System.out.println("owner info ------------");
+
+        for(Map.Entry<String,Integer> info : ownerPos.entrySet()){
+            String key = info.getKey();
+            System.out.println(key);
+            System.out.println("pos :"+info.getValue()+" cnt:"+count.get(key));
+        }
+
+        System.out.println("-----------------------");
         System.out.println("sushi information");
         for(Map.Entry<String, List<Node>> entry : map.entrySet()){
             String name = entry.getKey();
             List<Node> list = entry.getValue();
-            System.out.println("Name : "+name+" --------");
+            System.out.println("Name : "+name);
             for(Node n : list){
                 System.out.print(n.pos+" ");
             }
@@ -81,6 +91,7 @@ public class Main {
 
             for(Node n : list){
                 int nextPos = (n.pos + delta)%L;
+                int turnAround = delta/L;
 
                 if(!ownerExists){
                    // 아직 주인이 도착하지 않음 -> 위치만 업데이트 후 종료
@@ -90,7 +101,9 @@ public class Main {
                 }
 
                 int ownerPosition = ownerPos.get(name);
-                if((n.pos <= ownerPosition && ownerPosition <= nextPos) || (ownerPosition <= n.pos && ownerPosition <= nextPos)){
+                if((n.pos <= ownerPosition && ownerPosition <= nextPos)
+                        || (ownerPosition <= n.pos && ownerPosition <= nextPos)
+                        || turnAround >= 1 ){
                     // 초밥 먹음
                     int cnt = count.get(name);
                     cnt--;
@@ -136,6 +149,7 @@ public class Main {
         // map 자료구조 탐색 && StringBuilder update
         int numOfPerson = ownerPos.size();
         int leftSushi = 0;
+
         for(Map.Entry<String,List<Node>> entry : map.entrySet()){
             leftSushi += entry.getValue().size();
         }
