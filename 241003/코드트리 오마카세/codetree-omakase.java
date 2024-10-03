@@ -3,165 +3,165 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
 
-class Sushi{
-    int pos;
-    public Sushi(int pos){
-        this.pos = pos;
-    }
-}
 
-class Owner{
-    int pos;
-    int cnt;
-    public Owner(int pos,int cnt){
-        this.pos = pos;
-        this.cnt = cnt;
+class Query{
+    int op;
+    int t;
+    int x;
+    String name;
+    int n;
+
+    public Query(){}
+
+    public Query(int op, int t, int x, int n, String name) {
+        this.op = op;
+        this.t = t;
+        this.x = x;
+        this.n = n;
+        this.name = name;
     }
 }
 
 public class Main {
     static int L,Q;
-    static int lastT; // 마지막 연산이 발생한 t
-    static Map<String, List<Sushi>> sushiMap = new HashMap<>(); // 레일에 남아있는 초밥 리스트
-    static Map<String,Owner> owners = new HashMap<>(); // 가게에 들어와 있는 손님
+    static HashSet<String> customerSet = new HashSet<>();
+    static HashMap<String,Integer> customerTimeMap = new HashMap<>();
+    static HashMap<String,Integer> customerPosMap = new HashMap<>();
+    static HashMap<String,Integer> customerEatCntMap = new HashMap<>();
+    static StringBuilder sb = new StringBuilder();
+    static List<Query> queries = new ArrayList<>();
 
-    // 내가 봤을때 문제는 list를 newList로 옮겨줬을때 참조가 남아있어서 계속 list가 있어서 그런듯
+    static void debug(Query q){
+        System.out.println("------------------");
+        System.out.println("op : "+q.op);
+        System.out.println("t : "+q.t);
+        System.out.println("x : "+q.x);
+        System.out.println("n : "+q.n);
+        System.out.println("name : "+q.name);
+    }
+
+    // 쿼리를 받아서 저장
     public static void main(String[] args) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         StringTokenizer st = new StringTokenizer(br.readLine());
         L = Integer.parseInt(st.nextToken());
         Q = Integer.parseInt(st.nextToken());
-        StringBuilder sb = new StringBuilder();
 
         for(int i=0;i<Q;i++){
+            int op=-1, t=-1, x=-1,n = -1;
+            String name = "";
             st = new StringTokenizer(br.readLine());
-            int op = Integer.parseInt(st.nextToken());
-            int t = Integer.parseInt(st.nextToken());
-            computePos(t);
-//            debug(t);
+            op = Integer.parseInt(st.nextToken());
+            t = Integer.parseInt(st.nextToken());
+
             if(op == 100){
-                int x = Integer.parseInt(st.nextToken());
-                String name = st.nextToken();
-                makeSushi(x,name);
+                x = Integer.parseInt(st.nextToken());
+                name = st.nextToken();
             } else if(op == 200){
-                int x = Integer.parseInt(st.nextToken());
-                String name = st.nextToken();
-                int n = Integer.parseInt(st.nextToken());
-                customerIn(x,name,n);
-            } else if(op == 300){
-                photo(sb);
+                x = Integer.parseInt(st.nextToken());
+                name = st.nextToken();
+                n = Integer.parseInt(st.nextToken());
+
+                // memory when customer in HashMap
+                customerSet.add(name);
+                customerTimeMap.put(name,t);
+                customerPosMap.put(name,x);
+                customerEatCntMap.put(name,n);
             }
 
-            computePos(t);
+            Query q = new Query(op,t,x,n,name);
+            queries.add(q);
         }
+
+        solve();
 
         System.out.println(sb);
     }
 
-    static void debug(int t){
-        System.out.println("after compute :"+t);
-        System.out.println("owner info ------------");
+    private static void solve() {
+        // op == 100 인 경우에 대해서 언제 손님에게 도착하는지 계산
+        List<Query> sushiEatList = new ArrayList<>();
 
-        for(Map.Entry<String,Owner> ownerInfo : owners.entrySet()){
-            String key = ownerInfo.getKey();
-            Owner owner = ownerInfo.getValue();
-            System.out.println(key);
-            System.out.println("pos :"+owner.pos+" cnt:"+owner.cnt);
-        }
-
-        System.out.println("-----------------------");
-        System.out.println("sushi information");
-        for(Map.Entry<String, List<Sushi>> entry : sushiMap.entrySet()){
-            String name = entry.getKey();
-            List<Sushi> list = entry.getValue();
-            System.out.println("Name : "+name);
-            for(Sushi n : list){
-                System.out.print(n.pos+" ");
-            }
-            System.out.println();
-        }
-        System.out.println("##################");
-    }
-
-    static void computePos(int t){
-        // lastT 로부터 변위를 통해 모든 손님에 대해 초밥의 현재위치 재계산
-        int delta = t - lastT;
-
-        for(Map.Entry<String,List<Sushi>> entry : sushiMap.entrySet()){
-            String name = entry.getKey();
-            List<Sushi> list = entry.getValue();
-            List<Sushi> newList = new LinkedList<>();
-            boolean ownerExists = false;
-            Owner owner = owners.get(name);
-
-            if(owners.containsKey(name)){
-                ownerExists = true;
+        for(Query q : queries){
+            if(q.op != 100){
+                continue;
             }
 
-            for(Sushi n : list){
-                int nextPos = (n.pos + delta)%L;
-                int turnAround = delta/L;
+            Query sushi = q;
 
-                if(!ownerExists){
-                   // 아직 주인이 도착하지 않음 -> 위치만 업데이트 후 종료
-                    n.pos = nextPos;
-                    newList.add(n);
-                    continue;
+            // 초밥이 만들어지는 경우 언제 손님과 만나게 되는지 미리 계산
+            int expectedTimeForMatch = 0; // 초밥과 손님이 만날때까지의 예상 소요 시간
+            int expectedMatchTime  = 0; // 초밥과 손님이 만나는 시간
+
+            if(sushi.t < customerTimeMap.get(sushi.name)){
+                // 초밥 생성 시점이 customer 입장 미만일 경우
+
+                int diff = customerTimeMap.get(sushi.name) - sushi.t; // 손님 입장과 초밥 생성의 시간 차이
+                int sushiPosWhenCustomerIn = (sushi.x + diff)%L; // 손님 입장시 초밥의 현재 포지션
+
+                if(customerPosMap.get(sushi.name) < sushiPosWhenCustomerIn){
+                    // 초밥이 손님 기준 시계방향에 위치
+                    expectedTimeForMatch = L - sushiPosWhenCustomerIn + customerPosMap.get(sushi.name);
+                }
+                else {
+                    // 초밥이 손님 기준 반시계방향에 위치
+                    expectedTimeForMatch = customerPosMap.get(sushi.name) - sushiPosWhenCustomerIn;
                 }
 
-                int ownerPosition = owner.pos;
-                if((n.pos <= ownerPosition && ownerPosition <= nextPos)
-                        || (ownerPosition <= n.pos && ownerPosition <= nextPos)
-                        || turnAround >= 1 ){
-                    // 초밥 먹음
-                    int cnt = owner.cnt;
-                    cnt--;
-                    owner.cnt = cnt;
+                // matchTime = customer in time + expected match time
+                expectedMatchTime = customerTimeMap.get(sushi.name) + expectedTimeForMatch;
+            } else {
+                // customer 입장 후 초밥이 만들어짐
+
+                if(customerPosMap.get(sushi.name) < sushi.x){
+                    expectedTimeForMatch = L - sushi.x + customerPosMap.get(sushi.name);
                 } else {
-                    // 초밥 안먹음
-                    newList.add(n);
+                    expectedTimeForMatch = customerPosMap.get(sushi.name) - sushi.x;
                 }
 
-                n.pos = nextPos;
+                // matchTime = sushi in time + expected match time
+                expectedMatchTime = sushi.t + expectedTimeForMatch;
             }
 
-            if(ownerExists){
-                int cnt = owner.cnt;
-                if(cnt <= 0){
-                    owners.remove(name);
+            // 사라지는 명령 생성
+            Query sushiQuery = new Query();
+            sushiQuery.op = q.op + 1;
+            sushiQuery.t = expectedMatchTime;
+            sushiQuery.name = q.name;
+            sushiEatList.add(sushiQuery);
+        }
+
+        queries.addAll(sushiEatList);
+
+        // (1) t (2) op 에 대해서 ordered sort
+        Collections.sort(queries,(a,b)->{
+            if(a.t == b.t){
+                return a.op - b.op;
+            }
+            return a.t - b.t;
+        });
+
+        int sushiCount = 0;
+        int customerCount = 0;
+        // 순서대로 카운트
+        for(int i=0;i<queries.size();i++){
+            Query q = queries.get(i);
+
+            if(q.op == 100){
+                sushiCount++;
+            } else if(q.op == 101){
+                sushiCount--;
+                int cnt = customerEatCntMap.get(q.name);
+                cnt--;
+                if(cnt == 0){
+                    customerCount--;
                 }
+                customerEatCntMap.put(q.name,cnt);
+            } else if(q.op == 200){
+                customerCount++;
+            } else if(q.op == 300){
+                sb.append(customerCount).append(" ").append(sushiCount).append("\n");
             }
-
-            sushiMap.put(name,newList);
         }
-
-        // 마지막 계산시간 할당
-        lastT = t;
-    }
-
-    static void makeSushi(int x,String name){
-        // 초밥 만들기
-        if(sushiMap.containsKey(name)){
-            sushiMap.get(name).add(new Sushi(x));
-        } else {
-            sushiMap.put(name,new LinkedList<>());
-            sushiMap.get(name).add(new Sushi(x));
-        }
-    }
-
-    static void customerIn(int x,String name,int n){
-        owners.put(name,new Owner(x,n));
-    }
-
-    static void photo(StringBuilder sb){
-        // map 자료구조 탐색 && StringBuilder update
-        int numOfPerson = owners.size();
-        int leftSushi = 0;
-
-        for(Map.Entry<String,List<Sushi>> entry : sushiMap.entrySet()){
-            leftSushi += entry.getValue().size();
-        }
-
-        sb.append(numOfPerson).append(" ").append(leftSushi).append("\n");
     }
 }
