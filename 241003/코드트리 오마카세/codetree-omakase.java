@@ -4,10 +4,8 @@ import java.io.InputStreamReader;
 import java.util.*;
 
 class Sushi{
-    String owner;
     int pos;
-    public Sushi(String owner,int pos){
-        this.owner = owner;
+    public Sushi(int pos){
         this.pos = pos;
     }
 }
@@ -21,14 +19,13 @@ class Owner{
     }
 }
 
-
-
 public class Main {
     static int L,Q;
     static int lastT; // 마지막 연산이 발생한 t
     static Map<String, List<Sushi>> sushiMap = new HashMap<>(); // 레일에 남아있는 초밥 리스트
-    static Map<String,Owner> owners = new HashMap<>();
+    static Map<String,Owner> owners = new HashMap<>(); // 가게에 들어와 있는 손님
 
+    // 내가 봤을때 문제는 list를 newList로 옮겨줬을때 참조가 남아있어서 계속 list가 있어서 그런듯
     public static void main(String[] args) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
         StringTokenizer st = new StringTokenizer(br.readLine());
@@ -93,7 +90,7 @@ public class Main {
         for(Map.Entry<String,List<Sushi>> entry : sushiMap.entrySet()){
             String name = entry.getKey();
             List<Sushi> list = entry.getValue();
-            List<Sushi> newList = new ArrayList<>();
+            List<Sushi> newList = new LinkedList<>();
             boolean ownerExists = false;
             Owner owner = owners.get(name);
 
@@ -145,10 +142,10 @@ public class Main {
     static void makeSushi(int x,String name){
         // 초밥 만들기
         if(sushiMap.containsKey(name)){
-            sushiMap.get(name).add(new Sushi(name,x));
+            sushiMap.get(name).add(new Sushi(x));
         } else {
-            sushiMap.put(name,new ArrayList<>());
-            sushiMap.get(name).add(new Sushi(name,x));
+            sushiMap.put(name,new LinkedList<>());
+            sushiMap.get(name).add(new Sushi(x));
         }
     }
 
