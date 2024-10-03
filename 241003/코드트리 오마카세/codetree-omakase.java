@@ -3,21 +3,31 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.*;
 
-class Node{
+class Sushi{
     String owner;
     int pos;
-    public Node(String owner,int pos){
+    public Sushi(String owner,int pos){
         this.owner = owner;
         this.pos = pos;
     }
 }
 
+class Owner{
+    int pos;
+    int cnt;
+    public Owner(int pos,int cnt){
+        this.pos = pos;
+        this.cnt = cnt;
+    }
+}
+
+
+
 public class Main {
     static int L,Q;
     static int lastT; // 마지막 연산이 발생한 t
-    static Map<String, List<Node>> map = new HashMap<>(); // 레일에 남아있는 초밥 리스트
-    static Map<String,Integer> count = new HashMap<>();
-    static Map<String,Integer> ownerPos = new HashMap<>();
+    static Map<String, List<Sushi>> sushiMap = new HashMap<>(); // 레일에 남아있는 초밥 리스트
+    static Map<String,Owner> owners = new HashMap<>();
 
     public static void main(String[] args) throws IOException {
         BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
@@ -55,19 +65,20 @@ public class Main {
         System.out.println("after compute :"+t);
         System.out.println("owner info ------------");
 
-        for(Map.Entry<String,Integer> info : ownerPos.entrySet()){
-            String key = info.getKey();
+        for(Map.Entry<String,Owner> ownerInfo : owners.entrySet()){
+            String key = ownerInfo.getKey();
+            Owner owner = ownerInfo.getValue();
             System.out.println(key);
-            System.out.println("pos :"+info.getValue()+" cnt:"+count.get(key));
+            System.out.println("pos :"+owner.pos+" cnt:"+owner.cnt);
         }
 
         System.out.println("-----------------------");
         System.out.println("sushi information");
-        for(Map.Entry<String, List<Node>> entry : map.entrySet()){
+        for(Map.Entry<String, List<Sushi>> entry : sushiMap.entrySet()){
             String name = entry.getKey();
-            List<Node> list = entry.getValue();
+            List<Sushi> list = entry.getValue();
             System.out.println("Name : "+name);
-            for(Node n : list){
+            for(Sushi n : list){
                 System.out.print(n.pos+" ");
             }
             System.out.println();
@@ -79,17 +90,18 @@ public class Main {
         // lastT 로부터 변위를 통해 모든 손님에 대해 초밥의 현재위치 재계산
         int delta = t - lastT;
 
-        for(Map.Entry<String,List<Node>> entry : map.entrySet()){
+        for(Map.Entry<String,List<Sushi>> entry : sushiMap.entrySet()){
             String name = entry.getKey();
-            List<Node> list = entry.getValue();
-            List<Node> newList = new ArrayList<>();
+            List<Sushi> list = entry.getValue();
+            List<Sushi> newList = new ArrayList<>();
             boolean ownerExists = false;
+            Owner owner = owners.get(name);
 
-            if(ownerPos.containsKey(name)){
+            if(owners.containsKey(name)){
                 ownerExists = true;
             }
 
-            for(Node n : list){
+            for(Sushi n : list){
                 int nextPos = (n.pos + delta)%L;
                 int turnAround = delta/L;
 
@@ -100,14 +112,14 @@ public class Main {
                     continue;
                 }
 
-                int ownerPosition = ownerPos.get(name);
+                int ownerPosition = owner.pos;
                 if((n.pos <= ownerPosition && ownerPosition <= nextPos)
                         || (ownerPosition <= n.pos && ownerPosition <= nextPos)
                         || turnAround >= 1 ){
                     // 초밥 먹음
-                    int cnt = count.get(name);
+                    int cnt = owner.cnt;
                     cnt--;
-                    count.put(name,cnt);
+                    owner.cnt = cnt;
                 } else {
                     // 초밥 안먹음
                     newList.add(n);
@@ -117,13 +129,13 @@ public class Main {
             }
 
             if(ownerExists){
-                int cnt = count.get(name);
+                int cnt = owner.cnt;
                 if(cnt <= 0){
-                    ownerPos.remove(name);
+                    owners.remove(name);
                 }
             }
 
-            map.put(name,newList);
+            sushiMap.put(name,newList);
         }
 
         // 마지막 계산시간 할당
@@ -132,25 +144,24 @@ public class Main {
 
     static void makeSushi(int x,String name){
         // 초밥 만들기
-        if(map.containsKey(name)){
-            map.get(name).add(new Node(name,x));
+        if(sushiMap.containsKey(name)){
+            sushiMap.get(name).add(new Sushi(name,x));
         } else {
-            map.put(name,new ArrayList<>());
-            map.get(name).add(new Node(name,x));
+            sushiMap.put(name,new ArrayList<>());
+            sushiMap.get(name).add(new Sushi(name,x));
         }
     }
 
     static void customerIn(int x,String name,int n){
-        count.put(name,n);
-        ownerPos.put(name,x);
+        owners.put(name,new Owner(x,n));
     }
 
     static void photo(StringBuilder sb){
         // map 자료구조 탐색 && StringBuilder update
-        int numOfPerson = ownerPos.size();
+        int numOfPerson = owners.size();
         int leftSushi = 0;
 
-        for(Map.Entry<String,List<Node>> entry : map.entrySet()){
+        for(Map.Entry<String,List<Sushi>> entry : sushiMap.entrySet()){
             leftSushi += entry.getValue().size();
         }
 
